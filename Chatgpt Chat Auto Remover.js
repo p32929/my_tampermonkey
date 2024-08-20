@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Automated Task Script with Enhanced Popup Handling
+// @name         Chatgpt Chat Auto Remover
 // @namespace    http://tampermonkey.net/
-// @version      1.7
-// @description  Script to automate clicks on specific elements in a list with alerts on errors and enhanced popup handling.
+// @version      1.8
+// @description  Chatgpt Chat Auto Remover
 // @author       You
 // @match        https://chatgpt.com/*
 // @grant        none
@@ -13,17 +13,18 @@
 
     // Create the start button
     const startButton = document.createElement('button');
-    startButton.textContent = 'Start Automation';
+    startButton.textContent = 'Delete All Chats';
     startButton.style.position = 'fixed';
-    startButton.style.top = '10px';
-    startButton.style.right = '10px';
+    startButton.style.top = '16px';
+    startButton.style.right = '110px';
     startButton.style.zIndex = 1000;
     startButton.style.padding = '10px';
-    startButton.style.backgroundColor = '#28a745';
+    startButton.style.backgroundColor = '#000000';
     startButton.style.color = 'white';
     startButton.style.border = 'none';
     startButton.style.borderRadius = '5px';
     startButton.style.cursor = 'pointer';
+    startButton.style.fontSize = '12px';
     document.body.appendChild(startButton);
 
     // Function to wait for a specified amount of time
@@ -80,6 +81,9 @@
             const listItem = listItems.snapshotItem(i);
 
             try {
+                // Update the button text with remaining items
+                startButton.textContent = `Deleting Chat ${i + 1} of ${listItems.snapshotLength}`;
+
                 // Click on the first 'a' tag inside the list item
                 const link = listItem.getElementsByTagName('a')[0];
                 if (link) {
@@ -89,7 +93,7 @@
                 }
 
                 // Wait for the page to load (adjust the wait time if needed)
-                await waitFor(3000); // You may need to tweak this delay
+                // await waitFor(3000); // You may need to tweak this delay
 
                 // Locate and simulate a full mouse click on the button with aria-haspopup="menu"
                 const menuButton = await waitForElement('//button[@aria-haspopup="menu"]');
@@ -116,19 +120,19 @@
         }
 
         alert('Automation completed successfully!');
+        startButton.textContent = 'Delete All Chats';
+        startButton.style.backgroundColor = '#28a745';
+        startButton.disabled = false;
     }
 
     // Add event listener to the start button
     startButton.addEventListener('click', function () {
         startButton.disabled = true;
-        startButton.textContent = 'Automation Running...';
         startButton.style.backgroundColor = '#6c757d';
-        startAutomation().then(() => {
-            startButton.textContent = 'Automation Finished';
-        }).catch((error) => {
+        startAutomation().catch((error) => {
             alert(`Automation failed: ${error}`);
             startButton.disabled = false;
-            startButton.textContent = 'Start Automation';
+            startButton.textContent = 'Delete All Chats';
             startButton.style.backgroundColor = '#28a745';
         });
     });
