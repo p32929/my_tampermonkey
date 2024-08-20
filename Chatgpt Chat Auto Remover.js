@@ -1,31 +1,15 @@
 // ==UserScript==
 // @name         Chatgpt Chat Auto Remover
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Chatgpt Chat Auto Remover
 // @author       You
 // @match        https://chatgpt.com/*
-// @grant        none
+// @grant        GM_registerMenuCommand
 // ==/UserScript==
 
 (function () {
     'use strict';
-
-    // Create the start button
-    const startButton = document.createElement('button');
-    startButton.textContent = 'Delete All Chats';
-    startButton.style.position = 'fixed';
-    startButton.style.top = '16px';
-    startButton.style.right = '110px';
-    startButton.style.zIndex = 1000;
-    startButton.style.padding = '10px';
-    startButton.style.backgroundColor = '#000000';
-    startButton.style.color = 'white';
-    startButton.style.border = 'none';
-    startButton.style.borderRadius = '5px';
-    startButton.style.cursor = 'pointer';
-    startButton.style.fontSize = '12px';
-    document.body.appendChild(startButton);
 
     // Function to wait for a specified amount of time
     function waitFor(ms) {
@@ -68,12 +52,47 @@
         element.dispatchEvent(keyupEvent);
     }
 
+    // Function to create and update the status element
+    function createStatusElement() {
+        const statusDiv = document.createElement('div');
+        statusDiv.id = 'automation-status';
+        statusDiv.style.position = 'fixed';
+        statusDiv.style.top = '10px';
+        statusDiv.style.right = '10px';
+        statusDiv.style.padding = '10px';
+        statusDiv.style.backgroundColor = '#000';
+        statusDiv.style.color = '#fff';
+        statusDiv.style.zIndex = '1000';
+        statusDiv.style.borderRadius = '5px';
+        statusDiv.style.fontSize = '14px';
+        statusDiv.innerText = 'Starting automation...';
+        document.body.appendChild(statusDiv);
+    }
+
+    function updateStatusElement(text) {
+        const statusDiv = document.getElementById('automation-status');
+        if (statusDiv) {
+            statusDiv.innerText = text;
+        }
+    }
+
+    function removeStatusElement() {
+        const statusDiv = document.getElementById('automation-status');
+        if (statusDiv) {
+            document.body.removeChild(statusDiv);
+        }
+    }
+
     // Function to perform the automation task
     async function startAutomation() {
+        createStatusElement();
+
         const listItems = document.evaluate('//div[@class="relative mt-5 first:mt-0 last:mb-5"]/ol/li', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 
         if (listItems.snapshotLength === 0) {
-            alert('No items found to process.');
+            updateStatusElement('No items found to process.');
+            await waitFor(3000);
+            removeStatusElement();
             return;
         }
 
@@ -81,8 +100,8 @@
             const listItem = listItems.snapshotItem(i);
 
             try {
-                // Update the button text with remaining items
-                startButton.textContent = `Deleting Chat ${i + 1} of ${listItems.snapshotLength}`;
+                // Update the status element with remaining items
+                updateStatusElement(`Deleting Chat ${i + 1} of ${listItems.snapshotLength}`);
 
                 // Click on the first 'a' tag inside the list item
                 const link = listItem.getElementsByTagName('a')[0];
@@ -91,9 +110,6 @@
                 } else {
                     throw new Error('No link found in the list item');
                 }
-
-                // Wait for the page to load (adjust the wait time if needed)
-                // await waitFor(3000); // You may need to tweak this delay
 
                 // Locate and simulate a full mouse click on the button with aria-haspopup="menu"
                 const menuButton = await waitForElement('//button[@aria-haspopup="menu"]');
@@ -114,26 +130,23 @@
                 await waitFor(2000); // Adjust as needed
 
             } catch (error) {
-                alert(`Error during automation: ${error}`);
+                updateStatusElement(`Error: ${error.message}`);
+                await waitFor(3000);
+                removeStatusElement();
                 return;
             }
         }
 
-        alert('Automation completed successfully!');
-        startButton.textContent = 'Delete All Chats';
-        startButton.style.backgroundColor = '#28a745';
-        startButton.disabled = false;
+        updateStatusElement('Automation completed successfully!');
+        await waitFor(3000);
+        removeStatusElement();
     }
 
-    // Add event listener to the start button
-    startButton.addEventListener('click', function () {
-        startButton.disabled = true;
-        startButton.style.backgroundColor = '#6c757d';
+    // Register the start button inside the Tampermonkey menu
+    GM_registerMenuCommand('Delete All Chats', function () {
         startAutomation().catch((error) => {
-            alert(`Automation failed: ${error}`);
-            startButton.disabled = false;
-            startButton.textContent = 'Delete All Chats';
-            startButton.style.backgroundColor = '#28a745';
+            updateStatusElement(`Automation failed: ${error}`);
+            waitFor(3000).then(removeStatusElement);
         });
     });
 
