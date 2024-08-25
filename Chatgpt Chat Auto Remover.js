@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Chatgpt Chat Auto Remover
 // @namespace    http://tampermonkey.net/
-// @version      1.9
-// @description  Chatgpt Chat Auto Remover
+// @version      2.0
+// @description  Chatgpt Chat Auto Remover with Wait Functionality
 // @author       You
 // @match        https://chatgpt.com/*
 // @grant        GM_registerMenuCommand
@@ -83,27 +83,35 @@
         }
     }
 
+    // Function to get the current number of list items
+    function getCurrentItemCount() {
+        const listItems = document.evaluate('//div[@class="relative mt-5 first:mt-0 last:mb-5"]/ol/li', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+        return listItems.snapshotLength;
+    }
+
     // Function to perform the automation task
     async function startAutomation() {
         createStatusElement();
 
-        const listItems = document.evaluate('//div[@class="relative mt-5 first:mt-0 last:mb-5"]/ol/li', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-
-        if (listItems.snapshotLength === 0) {
+        let initialItemCount = getCurrentItemCount();
+        if (initialItemCount === 0) {
             updateStatusElement('No items found to process.');
             await waitFor(3000);
             removeStatusElement();
             return;
         }
 
-        for (let i = 0; i < listItems.snapshotLength; i++) {
-            const listItem = listItems.snapshotItem(i);
+        for (let i = 0; i < initialItemCount; i++) {
+            let currentItemCount = getCurrentItemCount();
 
             try {
                 // Update the status element with remaining items
-                updateStatusElement(`Deleting Chat ${i + 1} of ${listItems.snapshotLength}`);
+                updateStatusElement(`Deleting Chat ${i + 1} of ${initialItemCount}`);
 
                 // Click on the first 'a' tag inside the list item
+                const listItems = document.evaluate('//div[@class="relative mt-5 first:mt-0 last:mb-5"]/ol/li', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                const listItem = listItems.snapshotItem(0);  // Always pick the first item in the list
+
                 const link = listItem.getElementsByTagName('a')[0];
                 if (link) {
                     link.click();
@@ -114,24 +122,31 @@
                 // Locate and simulate a full mouse click on the button with aria-haspopup="menu"
                 const menuButton = await waitForElement('//button[@aria-haspopup="menu"]');
                 simulateMouseClick(menuButton);
-
-                // Wait for the popup menu to appear
-                await waitFor(500); // Wait for half a second (500ms)
+                await waitFor(250); // Wait for half a second (500ms)
 
                 // Click on the 4th menu item
                 const menuItem = await waitForElement('(//div[@role="menuitem"])[4]');
                 menuItem.click();
+                await waitFor(250); // Wait for half a second (500ms)
 
                 // Click on the button with class="btn relative btn-danger"
                 const dangerButton = await waitForElement('//button[contains(@class, "btn relative btn-danger")]');
                 dangerButton.click();
+                await waitFor(250); // Wait for half a second (500ms)
 
-                // Optional: wait for some time before moving to the next item
-                await waitFor(2000); // Adjust as needed
+                // Wait for the number of items to decrease
+                let newItemCount = getCurrentItemCount();
+                while (newItemCount >= currentItemCount) {
+                    await waitFor(100);
+                    newItemCount = getCurrentItemCount();
+                }
+
+                // Wait for an additional 1000 ms after detecting the count decrease
+                await waitFor(250);
 
             } catch (error) {
                 updateStatusElement(`Error: ${error.message}`);
-                await waitFor(3000);
+                await waitFor(250);
                 removeStatusElement();
                 return;
             }
