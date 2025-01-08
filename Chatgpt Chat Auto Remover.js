@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Chatgpt Chat Auto Remover
+// @name         ChatGPT Chat Auto Remover - Continuous Mode
 // @namespace    http://tampermonkey.net/
-// @version      2.2
-// @description  Chatgpt Chat Auto Remover with Enhanced Check Functionality
+// @version      2.3
+// @description  Continuously deletes ChatGPT chats with enhanced functionality and robustness
 // @author       You
 // @match        https://chatgpt.com/*
 // @grant        GM_registerMenuCommand
@@ -16,8 +16,8 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // Function to wait for an element to exist
-    function waitForElement(xpath) {
+    // Function to wait for an element to exist using XPath
+    function waitForElement(xpath, timeout = 5000) {
         console.log(`Waiting for element with XPath: ${xpath}`);
         return new Promise((resolve, reject) => {
             const interval = setInterval(() => {
@@ -33,7 +33,7 @@
                 clearInterval(interval);
                 console.log(`Timeout: Element with XPath ${xpath} not found`);
                 reject(`Element with XPath ${xpath} not found`);
-            }, 5000); // Time out after 5 seconds
+            }, timeout); // Time out after specified milliseconds
         });
     }
 
@@ -49,7 +49,7 @@
         element.dispatchEvent(mouseUpEvent);
         element.dispatchEvent(clickEvent);
 
-        // Additional keyboard event simulation
+        // Additional keyboard event simulation (optional, can be removed if not needed)
         const keydownEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
         const keyupEvent = new KeyboardEvent('keyup', { key: 'Enter', bubbles: true });
         element.dispatchEvent(keydownEvent);
@@ -70,6 +70,8 @@
         statusDiv.style.zIndex = '1000';
         statusDiv.style.borderRadius = '5px';
         statusDiv.style.fontSize = '14px';
+        statusDiv.style.maxHeight = '80vh';
+        statusDiv.style.overflowY = 'auto';
         statusDiv.innerText = 'Starting automation...';
         document.body.appendChild(statusDiv);
     }
@@ -90,7 +92,7 @@
         }
     }
 
-    // Function to get the current number of list items
+    // Function to get the current number of list items (chats)
     function getCurrentItemCount() {
         console.log('Getting current item count...');
         const listItems = document.evaluate('//div[@class="relative mt-5 first:mt-0 last:mb-5"]/ol/li', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
@@ -117,28 +119,26 @@
         return null;
     }
 
-    // Function to perform the automation task
+    // Function to perform the automation task continuously
     async function startAutomation() {
         createStatusElement();
 
-        let initialItemCount = getCurrentItemCount();
-        let initialFirstItemDetails = getFirstItemDetails();
-
-        if (initialItemCount === 0) {
-            updateStatusElement('No items found to process.');
-            await waitFor(3000);
-            removeStatusElement();
-            return;
-        }
-
-        for (let i = 0; i < initialItemCount; i++) {
+        while (true) { // Continuous loop
             let currentItemCount = getCurrentItemCount();
+            updateStatusElement(`Chats Remaining: ${currentItemCount}`);
+
+            if (currentItemCount === 0) {
+                updateStatusElement('No more chats to delete. Automation completed.');
+                console.log('No more chats to delete. Automation completed.');
+                break; // Exit the loop when no items are left
+            }
+
             let currentFirstItemDetails = getFirstItemDetails();
 
             try {
                 // Update the status element with remaining items
-                updateStatusElement(`Deleting Chat ${i + 1} of ${initialItemCount}`);
-                console.log(`Processing item ${i + 1} of ${initialItemCount}`);
+                updateStatusElement(`Deleting Chat: ${currentItemCount} remaining`);
+                console.log(`Deleting chat. Chats remaining: ${currentItemCount}`);
 
                 // Click on the first 'a' tag inside the list item
                 const listItems = document.evaluate('//div[@class="relative mt-5 first:mt-0 last:mb-5"]/ol/li', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
@@ -162,19 +162,19 @@
                 simulateMouseClick(menuButton);
                 await waitFor(250); // Wait for a quarter of a second (250ms)
 
-                // Click on the 4th menu item
+                // Click on the 4th menu item (Assuming this is the delete option)
                 const menuItem = await waitForElement('(//div[@role="menuitem"])[4]');
                 console.log('Clicking on the 4th menu item...');
                 menuItem.click();
                 await waitFor(250); // Wait for a quarter of a second (250ms)
 
-                // Click on the button with class="btn relative btn-danger"
-                const dangerButton = await waitForElement('//button[contains(@class, "btn relative btn-danger")]');
+                // Click on the button with class containing "btn-danger" (Delete confirmation)
+                const dangerButton = await waitForElement('//button[contains(@class, "btn-danger")]');
                 console.log('Clicking on the delete confirmation button...');
                 dangerButton.click();
                 await waitFor(250); // Wait for a quarter of a second (250ms)
 
-                // Wait for either the number of items to decrease, the title of the first item to change, or the href to change
+                // Wait for the item to be deleted by checking if the count has decreased or details have changed
                 let newItemCount = getCurrentItemCount();
                 let newFirstItemDetails = getFirstItemDetails();
                 while (
@@ -183,33 +183,32 @@
                     newFirstItemDetails.title === currentFirstItemDetails.title &&
                     newFirstItemDetails.href === currentFirstItemDetails.href
                 ) {
-                    console.log('Waiting for item count to decrease, title or href to change...');
-                    await waitFor(100);
+                    console.log('Waiting for the chat to be deleted...');
+                    await waitFor(100); // Wait for 100ms before checking again
                     newItemCount = getCurrentItemCount();
                     newFirstItemDetails = getFirstItemDetails();
                 }
 
-                // Wait for an additional 1000 ms after detecting the count decrease, title change, or href change
-                await waitFor(250);
+                // Optionally, wait a bit before proceeding to the next deletion to ensure UI stability
+                await waitFor(100); // Wait for 100ms
 
             } catch (error) {
                 console.error('Error during automation:', error);
-                updateStatusElement(`Error: ${error.message}`);
-                await waitFor(250);
-                removeStatusElement();
-                return;
+                updateStatusElement(`Error: ${error.message}. Retrying...`);
+                // Wait a bit before retrying to prevent rapid error loops
+                await waitFor(500);
+                continue; // Continue the loop even after an error
             }
         }
 
-        updateStatusElement('Automation completed successfully!');
-        console.log('Automation completed successfully!');
-        await waitFor(3000);
+        // Final cleanup after all chats are deleted
+        await waitFor(2000); // Wait for 2 seconds before removing the status
         removeStatusElement();
     }
 
     // Register the start button inside the Tampermonkey menu
-    GM_registerMenuCommand('Delete All Chats', function () {
-        console.log('Starting automation via Tampermonkey menu...');
+    GM_registerMenuCommand('Delete All Chats Continuously', function () {
+        console.log('Starting continuous automation via Tampermonkey menu...');
         startAutomation().catch((error) => {
             console.error('Automation failed:', error);
             updateStatusElement(`Automation failed: ${error}`);
