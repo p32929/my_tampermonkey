@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ChatGPT Model Tracker
 // @namespace    http://tampermonkey.net/
-// @version      1.7.2
-// @description  Tracks how many times the model is selected per day, fixes date issues for local timezone, and displays stats
+// @version      1.7.3
+// @description  Tracks how many times the model is selected per day, displays stats below model names in the menu
 // @author       You
 // @match        https://chatgpt.com/*
 // @grant        none
@@ -89,15 +89,15 @@
 
             lastFiveDays.forEach((date) => {
                 const count = modelData[date] || 0;
-                statsText += `${date}: ${count} times\n`;
+                statsText += `|| ${date}: ${count} times ||\n`;
             });
 
-            // Add or update stats in the menu item
+            // Add or update stats below the model name
             let statsElement = menuItem.querySelector('.model-stats');
             if (!statsElement) {
                 statsElement = document.createElement('div');
-                statsElement.className = 'model-stats text-xs text-token-text-secondary mt-1';
-                menuItem.appendChild(statsElement);
+                statsElement.className = 'model-stats text-xs text-token-text-secondary mt-2'; // Updated styling
+                modelNameElement.parentNode.appendChild(statsElement); // Append stats below the model name
             }
             statsElement.innerText = statsText.trim();
         });
