@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Model Tracker
 // @namespace    http://tampermonkey.net/
-// @version      1.7.3
+// @version      1.8
 // @description  Tracks how many times the model is selected per day, displays stats below model names in the menu
 // @author       You
 // @match        https://chatgpt.com/*
@@ -89,7 +89,7 @@
 
             lastFiveDays.forEach((date) => {
                 const count = modelData[date] || 0;
-                statsText += `|| ${date}: ${count} times ||\n`;
+                statsText += `${date}: ${count} times\n`;
             });
 
             // Add or update stats below the model name
