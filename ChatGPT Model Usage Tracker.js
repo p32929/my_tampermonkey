@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Model Tracker
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Tracks how many times the model is selected per day, displays stats below model names in the menu
 // @author       You
 // @match        https://chatgpt.com/*
@@ -44,6 +44,8 @@
 
     // Function to update data in localStorage
     const updateStoredData = (modelValue) => {
+        if (!modelValue) return
+
         const today = getTodayDate();
         const data = getStoredData();
 
@@ -83,7 +85,7 @@
             const modelNameElement = menuItem.querySelector('div:first-child > div:first-child > div:first-child');
             if (!modelNameElement) return;
 
-            const modelName = modelNameElement.innerText.trim().split("\n")[0].split("-")[1];
+            const modelName = modelNameElement.innerText.trim().split("\n")[0].replace("GPT-", "")
             const modelData = data[modelName] || {};
             let statsText = '';
 
